@@ -3,15 +3,17 @@
 // the signaling server, exercising the whole protocol end to end.
 const WebSocket = require('ws');
 const http = require('http');
+const https = require('https');
 
 const BASE = process.env.BASE_URL || 'http://localhost:3000';
-const WS = BASE.replace(/^http/, 'ws') + '/ws';
+const WS = BASE.replace(/^https/, 'wss').replace(/^http/, 'ws') + '/ws';
 let pass = 0, fail = 0;
 const ok = (cond, label) => { if (cond) { pass++; console.log('  ✓ ' + label); } else { fail++; console.log('  ✗ FAIL: ' + label); } };
 
 function api(path, opts = {}) {
   return new Promise((resolve, reject) => {
-    const req = http.request(BASE + path, { method: opts.method || 'GET', headers: opts.headers || {} }, (res) => {
+    const mod = BASE.startsWith('https') ? https : http;
+    const req = mod.request(BASE + path, { method: opts.method || 'GET', headers: opts.headers || {} }, (res) => {
       const chunks = [];
       res.on('data', c => chunks.push(c));
       res.on('end', () => resolve({ status: res.statusCode, body: Buffer.concat(chunks), headers: res.headers }));

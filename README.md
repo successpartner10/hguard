@@ -7,10 +7,10 @@ subscription to keep old clips.
 
 > **Current build status (2026-08-10):** everything works on two backends.
 > 1. **Local Node server** (`server/`) — zero-cloud, runs anywhere with Node 18+.
-> 2. **Cloudflare Workers + Durable Objects** (`worker/`) — Phase 6 code complete and
->    validated against the local Cloudflare emulator (`wrangler dev`): all 28 protocol
->    checks + 24 browser E2E checks pass, DO persistence confirmed across restarts.
->    Deployment to production is one command (see Part 2, Step 1c).
+> 2. **Cloudflare Workers + Durable Objects** (`worker/`) — **LIVE IN PRODUCTION at
+>    https://ai-home-guard.sandipy7979.workers.dev** — validated end-to-end on the live
+>    Worker: 28/28 protocol checks + 24/24 browser E2E checks pass against production,
+>    including real clip uploads to Durable Object storage, QR pairing, and live WebRTC.
 
 ---
 
@@ -116,7 +116,9 @@ Legend: ✅ built · 🟡 in progress · 🔲 planned
 >   event log, feedback) + message routing between sessions. Replaces `data/db.json`.
 > - `Session` DO (one per WebSocket connection) — owns the socket, authenticates,
 >   handles signaling/pairing/presence; stateless so reconnects land on fresh instances.
-> - R2 bucket — event clips + thumbnails (the user's long-term storage stays Google Drive).
+> - Durable Object SQLite storage — event clips + thumbnails are stored in the Registry
+>   DO (values up to 1 MiB; clips are ~30-300 KB). No R2/KV activation or credit card
+>   needed — pure Workers free tier. The user's long-term storage stays Google Drive.
 > - Workers Static Assets — serves the whole `web/` app from the same deployment.
 > - QR codes render as SVG (no native PNG dependency needed in the runtime).
 > Cloudflare remains the control/signaling layer only — never a video proxy or store.
@@ -140,7 +142,7 @@ Legend: ✅ built · 🟡 in progress · 🔲 planned
 | 3 | AI layer: person/package detection, zones, sensitivity, notifications | ✅ done |
 | 4 | Smart layer: digest, NL search, false-alarm learning (face grouping 🔲) | ✅ done* |
 | 5 | Polish: empty states, onboarding, accessibility, diagnostics | ✅ done |
-| 6 | Cloudflare Workers + Durable Objects — implemented & locally validated | ✅ code, 🔲 live deploy |
+| 6 | Cloudflare Workers + Durable Objects — implemented, validated & LIVE | ✅ live at https://ai-home-guard.sandipy7979.workers.dev |
 
 ### 7. Living Documentation Policy
 
@@ -284,19 +286,19 @@ The app on github.io is the **viewer shell only** — it needs a signaling backe
 
 > If you skip step 2–3, the github.io app shows a friendly “no backend connected” banner — that's expected; the full app runs at `http://<ip>:3000` directly from your server.
 
-### Step 1c (optional) — Deploy the Cloudflare backend (free tier)
+### Step 1c — Deploy the Cloudflare backend (free tier, no credit card)
+
+**Already deployed:** https://ai-home-guard.sandipy7979.workers.dev — open it from any
+device, no Node server needed. To redeploy after code changes:
 
 ```bash
 cd ai-home-guard/worker
-npx wrangler login              # opens your browser, logs into Cloudflare
-npm run r2:create               # once: creates the ai-home-guard-clips R2 bucket
-npm run deploy                  # deploys Worker + DOs + static assets
+npm install
+CLOUDFLARE_API_TOKEN=<token> npx wrangler deploy   # or: npx wrangler login
 ```
-After ~30 seconds the whole app (site + API + signaling) runs at
-`https://ai-home-guard.<subdomain>.workers.dev` — open it from any device, no Node
-server needed. Pair with QR codes exactly like before; events, clips and thumbnails
-live in the Worker's Durable Object storage + R2, and long-term storage can still be
-your Google Drive. A custom domain can be attached later in the Cloudflare dashboard.
+Clips + thumbnails are stored in the Durable Object's SQLite storage (Workers free
+tier — no R2/KV activation, no credit card). Long-term storage can still be your
+Google Drive. A custom domain can be attached in the Cloudflare dashboard.
 
 ### Step 2 — Open the app on your devices
 - On the server computer: http://localhost:3000

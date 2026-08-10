@@ -8,6 +8,8 @@ main = "src/index.ts"
 compatibility_date = "2024-11-01"
 compatibility_flags = ["nodejs_compat"]
 
+
+
 # Static site (the whole web/ app) served from the same Worker
 [assets]
 directory = "../web"
@@ -27,8 +29,6 @@ class_name = "Session"
 tag = "v1"
 new_sqlite_classes = ["Registry", "Session"]
 
-# Event clips + thumbnails (user's clips live in their Google Drive;
-# this R2 bucket is the transient clip store served to the monitor)
-[[r2_buckets]]
-binding = "CLIPS"
-bucket_name = "ai-home-guard-clips"
+# Event clips + thumbnails are stored in the Registry Durable Object's
+# SQLite storage (free tier, no R2/KV activation or credit card needed).
+# Long-term storage remains the user's own Google Drive.

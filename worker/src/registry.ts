@@ -37,6 +37,28 @@ function pairCode() {
 
 export class Registry extends DurableObject {
   async fetch(request: Request): Promise<Response> {
+    const url = new URL(request.url);
+
+    // raw file store (clips/thumbs) — bypasses JSON rpc so binary bodies pass through
+    if (url.pathname.startsWith('/file/')) {
+      const key = url.pathname.slice('/file/'.length);
+      if (request.method === 'PUT') {
+        const buf = await request.arrayBuffer();
+        if (buf.byteLength > 1_000_000) return this.err('clip too large', 413);
+        await this.ctx.storage.put('file:' + key, new Uint8Array(buf));
+        return new Response('ok');
+      }
+      if (request.method === 'GET') {
+        const val = await this.ctx.storage.get<Uint8Array>('file:' + key);
+        if (!val) return new Response('not found', { status: 404 });
+        return new Response(val, { headers: { 'Content-Type': 'application/octet-stream' } });
+      }
+      if (request.method === 'DELETE') {
+        await this.ctx.storage.delete('file:' + key);
+        return new Response('ok');
+      }
+    }
+
     let body: any = {};
     try { body = await request.json(); } catch { /* noop */ }
     const { op } = body;

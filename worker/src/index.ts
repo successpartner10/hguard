@@ -1,4 +1,5 @@
-import * as QRCode from 'qrcode/lib/server.js';
+import QR from './vendor/qr.js';
+const qrCreate = QR.create, qrRender = QR.render;
 
 export { Registry } from './registry';
 export { Session } from './session';
@@ -16,9 +17,14 @@ export { Session } from './session';
 type Env = {
   REGISTRY: DurableObjectNamespace;
   SESSION: DurableObjectNamespace;
-  CLIPS: R2Bucket;
   ASSETS?: Fetcher;
 };
+
+// Event clips + thumbnails live in the Registry DO's SQLite storage (free
+// tier, no R2/KV activation needed). Values up to 1 MiB — clips are ~30-300 KB.
+// Long-term storage remains the user's Google Drive; this is the transient
+// clip store served to the monitor.
+const CLIP_TTL_MS = 30 * 24 * 3600 * 1000; // prune files older than 30 days
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -41,9 +47,26 @@ function withCors(res: Response) {
   return res;
 }
 
+function registryStub(env: Env) {
+  return env.REGISTRY.get(env.REGISTRY.idFromName('registry'));
+}
+
+async function filePut(env: Env, key: string, buf: ArrayBuffer) {
+  const res = await registryStub(env).fetch('https://registry/file/' + encodeURIComponent(key), {
+    method: 'PUT', body: new Uint8Array(buf),
+  });
+  if (res.status !== 200) throw new Error('file put failed: ' + res.status);
+}
+
+async function fileGet(env: Env, key: string): Promise<ArrayBuffer | null> {
+  const res = await registryStub(env).fetch('https://registry/file/' + encodeURIComponent(key));
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error('file get failed: ' + res.status);
+  return res.arrayBuffer();
+}
+
 async function registryRpc(env: Env, op: string, args: any = {}): Promise<any> {
-  const stub = env.REGISTRY.get(env.REGISTRY.idFromName('registry'));
-  const res = await stub.fetch('https://registry/', { method: 'POST', body: JSON.stringify({ op, ...args }) });
+  const res = await registryStub(env).fetch('https://registry/', { method: 'POST', body: JSON.stringify({ op, ...args }) });
   const j: any = await res.json();
   if (!j.ok) throw new Error(j.error || 'registry rpc failed');
   return j;
@@ -71,7 +94,8 @@ export default {
       const code = String(url.searchParams.get('code') || '').toUpperCase();
       if (!/^[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(code)) return json({ error: 'bad code' }, 400);
       try {
-        const svg = await QRCode.toString(`aihguard://pair/${code}`, { type: 'svg', width: 480, margin: 2, errorCorrectionLevel: 'M' });
+        const qrData = qrCreate(`aihguard://pair/${code}`, { errorCorrectionLevel: 'M' });
+        const svg = qrRender(qrData, { width: 480, margin: 2 });
         return new Response(svg, { headers: { 'Content-Type': 'image/svg+xml', 'Cache-Control': 'no-store' } });
       } catch (e: any) {
         console.error('qr error:', e?.message, e?.stack);
@@ -121,11 +145,8 @@ export default {
       const name = String(q.get('name') || '').replace(/[^\w.\-]/g, '_');
       if (!name) return json({ error: 'name required' }, 400);
       const key = `clips/${q.get('camera')}/${new Date().toISOString().slice(0, 10)}/${name}`;
-      // buffer the body so the R2 put always has a known length
       const buf = await request.arrayBuffer();
-      await env.CLIPS.put(key, new Uint8Array(buf), {
-        httpMetadata: { contentType: request.headers.get('Content-Type') || 'video/webm' },
-      });
+      await filePut(env, key, buf);
       await registryRpc(env, 'attachClip', { eventId: q.get('event'), url: '/' + key, size: buf.byteLength });
       return json({ ok: true, url: '/' + key });
     }
@@ -136,20 +157,18 @@ export default {
       if (!camJ.camera) return json({ error: 'unknown camera' }, 404);
       const key = `thumbs/${q.get('camera')}/${q.get('event')}.jpg`;
       const buf = await request.arrayBuffer();
-      await env.CLIPS.put(key, new Uint8Array(buf), { httpMetadata: { contentType: 'image/jpeg' } });
+      await filePut(env, key, buf);
       await registryRpc(env, 'attachThumb', { eventId: q.get('event'), url: '/' + key });
       return json({ ok: true, url: '/' + key });
     }
 
     if (url.pathname.startsWith('/clips/') || url.pathname.startsWith('/thumbs/')) {
       const key = url.pathname.slice(1);
-      const obj = await env.CLIPS.get(key);
+      const obj = await fileGet(env, key);
       if (!obj) return json({ error: 'not found' }, 404);
       const ext = key.slice(key.lastIndexOf('.')).toLowerCase();
-      return withCors(new Response(obj.body, {
-        headers: {
-          'Content-Type': (obj.httpMetadata && obj.httpMetadata.contentType) || MIME[ext] || 'application/octet-stream',
-        },
+      return withCors(new Response(obj, {
+        headers: { 'Content-Type': MIME[ext] || 'application/octet-stream' },
       }));
     }
 
