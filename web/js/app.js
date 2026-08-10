@@ -10,7 +10,7 @@ export const app = {
   camera: null,
   monitor: null,
 };
-
+window.__app = app; // dev/debug hook
 // ---------------------------------------------------------------- toast
 export function toast(message, kind = 'info', ms = 4200) {
   const box = $('#toasts');

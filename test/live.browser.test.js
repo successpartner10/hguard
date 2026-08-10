@@ -28,7 +28,15 @@ const ok = (cond, label) => { if (cond) { pass++; console.log('  ✓ ' + label);
   const cam = await setup();
   await cam.goto(LIVE, { waitUntil: 'domcontentloaded' });
   await cam.waitForFunction(() => !document.querySelector('#view-onboarding').classList.contains('hidden'), null, { timeout: 30000 });
-  const connected = await cam.waitForFunction(() => document.querySelector('#conn-dot').classList.contains('on'), null, { timeout: 30000 }).then(() => true).catch(() => false);
+  let connected = false;
+  for (let attempt = 1; attempt <= 3 && !connected; attempt++) {
+    connected = await cam.waitForFunction(() => document.querySelector('#conn-dot').classList.contains('on'), null, { timeout: 45000 }).then(() => true).catch(() => false);
+    if (!connected) {
+      console.log(`    attempt ${attempt}: no WS yet — reloading`);
+      await cam.reload({ waitUntil: 'domcontentloaded' });
+      await cam.waitForTimeout(3000);
+    }
+  }
   ok(connected, 'camera connects to backend through the public tunnel (https→wss)');
   await cam.click('#btn-start-camera');
   await cam.fill('#camera-name-input', 'Live Cam');

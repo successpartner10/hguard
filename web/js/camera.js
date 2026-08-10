@@ -302,6 +302,11 @@ export class CameraMode {
     const meter = $('#motion-bar');
     if (meter) meter.style.width = Math.max(2, r.score) + '%';
 
+    // hard cap: never let one event run forever (continuous motion)
+    if (this.event && Date.now() - this.event.startedAt >= MAX_EVENT_MS) {
+      this.finalizeEvent();
+    }
+
     if (!this.armed || !r.active) {
       if (this.event && !this.event.tailing) this.scheduleTail();
       return;
@@ -320,7 +325,9 @@ export class CameraMode {
       // update energy / box
       this.event.energy = Math.max(this.event.energy || 0, r.score);
       this.event.lastActive = Date.now();
+      // motion resumed — cancel the pending tail and allow re-arming it
       if (this.event.tailTimer) { clearTimeout(this.event.tailTimer); this.event.tailTimer = null; }
+      this.event.tailing = false;
     }
     if (r.active) this.flashOnce();
   }
@@ -405,7 +412,6 @@ export class CameraMode {
     const dur = (Date.now() - ev.startedAt) / 1000;
     const tag = ev.tag || 'motion';
     const conf = ev.conf;
-
     // false-alarm learning: quietly drop recurring non-events
     if (this.suppressor.shouldSuppress({ tag, zone: ev.zone, at: ev.at, energy: ev.energy })) {
       this.suppressor.suppressedCount++;

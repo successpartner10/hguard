@@ -73,6 +73,7 @@ export class ClipRecorder {
     this.chunks = [];             // current session chunks
     this.ring = [];               // pre-roll ring buffer
     this.ringMax = 5;             // ~7.5s of pre-roll
+    this.activeCollector = null;  // collector being filled during a live event
     this.recording = false;
     this.sessionStart = 0;
     this.onChunk = onChunk || null;
@@ -100,6 +101,8 @@ export class ClipRecorder {
         this.chunks.push(ev.data);
         // ring = chunks from the last ringMax slots (keep 2x to allow trimming)
         this.ring = this.chunks.slice(-this.ringMax * 2);
+        // a live event is in progress — feed it every new chunk too
+        if (this.activeCollector) this.activeCollector.chunks.push(ev.data);
       }
     };
     this.recorder.onstop = () => {
@@ -119,13 +122,18 @@ export class ClipRecorder {
 
   get hasPreRoll() { return this.ring.length > 0; }
 
-  // Snapshot the pre-roll + return a collector for event chunks
+  // Snapshot the pre-roll + open a collector that keeps receiving chunks
+  // for the whole duration of the event (long events = full clips, not just
+  // the pre-roll).
   beginEvent() {
-    const pre = this.ring.slice();
-    const evChunks = [...pre];
+    const collector = { chunks: this.ring.slice() };
+    this.activeCollector = collector;
     return {
-      push: (blob) => { if (blob && blob.size > 0) evChunks.push(blob); },
-      finish: () => new Blob(evChunks, { type: pre.length ? pre[0].type : 'video/webm' }),
+      push: (blob) => { if (blob && blob.size > 0) collector.chunks.push(blob); },
+      finish: () => {
+        if (this.activeCollector === collector) this.activeCollector = null;
+        return new Blob(collector.chunks, { type: collector.chunks.length ? collector.chunks[0].type : 'video/webm' });
+      },
     };
   }
 }
