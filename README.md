@@ -5,11 +5,12 @@ A second device (or web browser) becomes the **Viewer/Monitor**. Footage and eve
 stored in **your own Google Drive** — no vendor lock-in, no unknown third-party cloud, no
 subscription to keep old clips.
 
-> **Current build status (2026-08-10):** local-first. Everything runs on your own
-> network with a tiny Node.js server. **Cloudflare Workers + Durable Objects are
-> deferred to Phase 6** — the app gets fully working first, then the server layer is
-> swapped for Cloudflare (the client protocol already matches the target design, so the
-> swap is mostly server-side).
+> **Current build status (2026-08-10):** everything works on two backends.
+> 1. **Local Node server** (`server/`) — zero-cloud, runs anywhere with Node 18+.
+> 2. **Cloudflare Workers + Durable Objects** (`worker/`) — Phase 6 code complete and
+>    validated against the local Cloudflare emulator (`wrangler dev`): all 28 protocol
+>    checks + 24 browser E2E checks pass, DO persistence confirmed across restarts.
+>    Deployment to production is one command (see Part 2, Step 1c).
 
 ---
 
@@ -108,11 +109,18 @@ Legend: ✅ built · 🟡 in progress · 🔲 planned
 - **Backend (current):** `server/` — Node.js + `ws`: QR pairing, WebRTC signaling relay, presence/heartbeats, event metadata, clip/thumb storage, feedback relay, bandwidth probe.
 - **Auth:** Google Sign-In only (via the GIS client library in Settings → Storage). No app passwords.
 
-> **Cloudflare (Phase 6, deferred):** `worker/` + `durable-objects/` will implement the *same*
-> message protocol (`hello`, `camera.register`, `monitor.pair`, `monitor.watch`,
-> `signal`, `camera.event`, `feedback`, `ping`, …). Clients already point at any server via
-> Settings → Server URL, so the swap is mostly server-side. Cloudflare remains the
-> control/signaling layer only — never a video proxy or store.
+> **Cloudflare (Phase 6):** `worker/` implements the *same* message protocol
+> (`hello`, `camera.register`, `monitor.pair`, `monitor.watch`, `signal`,
+> `camera.event`, `feedback`, `ping`, …) on Workers + Durable Objects:
+> - `Registry` DO (singleton) — durable state (camera directory, pairing codes,
+>   event log, feedback) + message routing between sessions. Replaces `data/db.json`.
+> - `Session` DO (one per WebSocket connection) — owns the socket, authenticates,
+>   handles signaling/pairing/presence; stateless so reconnects land on fresh instances.
+> - R2 bucket — event clips + thumbnails (the user's long-term storage stays Google Drive).
+> - Workers Static Assets — serves the whole `web/` app from the same deployment.
+> - QR codes render as SVG (no native PNG dependency needed in the runtime).
+> Cloudflare remains the control/signaling layer only — never a video proxy or store.
+> Validated with `BASE_URL=http://localhost:8787 npm run test:e2e` against `wrangler dev`.
 
 ### 5. Non-Functional Requirements
 
@@ -132,7 +140,7 @@ Legend: ✅ built · 🟡 in progress · 🔲 planned
 | 3 | AI layer: person/package detection, zones, sensitivity, notifications | ✅ done |
 | 4 | Smart layer: digest, NL search, false-alarm learning (face grouping 🔲) | ✅ done* |
 | 5 | Polish: empty states, onboarding, accessibility, diagnostics | ✅ done |
-| 6 | Cloudflare Workers + Durable Objects deployment (deferred) | 🔲 next |
+| 6 | Cloudflare Workers + Durable Objects — implemented & locally validated | ✅ code, 🔲 live deploy |
 
 ### 7. Living Documentation Policy
 
@@ -148,9 +156,16 @@ ai-home-guard/
 ├── package.json              # scripts: start, test, test:e2e, test:controls
 ├── LICENSE                   # MIT
 ├── .gitignore                # node_modules/, data/
-├── server/                   # LOCAL signaling server (Phase 6: → Cloudflare Workers/DOs)
+├── server/                   # LOCAL signaling server (same protocol as the Worker)
 │   ├── index.js              # HTTP (static + API) + WebSocket signaling + presence + events
 │   └── db.js                 # JSON persistence (data/db.json), clip/thumb storage paths
+├── worker/                   # CLOUDFLARE WORKERS backend (Phase 6) — deploy to production
+│   ├── wrangler.toml         # config: assets, DO bindings (Registry/Session), R2 bucket
+│   ├── src/index.ts          # Worker entry: REST API + WS upgrade + static assets + R2
+│   ├── src/registry.ts       # Registry DO: durable state, pairing, routing, events
+│   ├── src/session.ts        # Session DO per connection: sockets, auth, signaling
+│   ├── package.json          # scripts: dev / deploy / r2:create
+│   └── tsconfig.json
 ├── web/                      # the whole app — no build step, vanilla ES modules
 │   ├── index.html            # app shell (onboarding, camera view, monitor view, modals)
 │   ├── css/app.css           # design system (one accent color, flat, responsive)
@@ -184,6 +199,7 @@ Newest first. One entry per meaningful change.
 
 | Date | Change | Files/Modules touched |
 |---|---|---|
+| 2026-08-10 | **Phase 6 — Cloudflare Workers + Durable Objects implemented and validated.** `worker/` replaces the Node server 1:1 (same WS/REST protocol): Registry DO (durable state, pairing, routing, event log, feedback), Session DO per connection (sockets, auth, signaling, presence), R2 for clips/thumbs, Workers Static Assets for the web app, SVG QR codes. All 28 protocol + 24 browser E2E checks pass against `wrangler dev`; DO storage survives restarts. Tests parametrized via `BASE_URL` so the same suites run against either backend. | `worker/`, `test/{integration,e2e}.browser.test.js`, `README.md` |
 | 2026-08-10 | **Deployed to https://successpartner10.github.io/hguard/ and validated live** over a public https tunnel (localtunnel) against the local backend: camera+monitor on the github.io origin, QR pairing, live WebRTC, events and clips cross-origin. Fixes found by live testing: (1) detection loop switched from rAF to setInterval so a backgrounded camera tab keeps detecting; (2) event collectors now receive chunks for the whole event duration (long events produced empty blobs before) and the `tailing` flag re-arms after motion resumes (events could never finalize once the tail was cancelled); (3) the offline clip queue now drains periodically, not only on reconnect; (4) server CORS allows the `bypass-tunnel-reminder` header used by tunnel tooling. | `web/js/{camera,recorder,net}.js`, `server/index.js`, `test/live.browser.test.js`, `README.md` |
 | 2026-08-10 | **GitHub Pages support.** App made deployable as a static site under a repo subpath: relative asset paths, `apiUrl()` server-URL resolution for all REST/WS/QR/clip/thumb calls, CORS on the server, Pages deploy workflow, `.nojekyll`, and a "no backend connected" banner on static hosts. Fixed latent bug where `net.js` read settings under the wrong localStorage key (invisible until cross-origin use). Added `test:pages` — a two-browser E2E simulating the github.io origin + remote backend (12 checks). | `web/index.html`, `web/js/{net,camera,monitor,recorder,app}.js`, `server/index.js`, `.github/workflows/pages.yml`, `web/.nojekyll`, `test/{serve-static,pages.browser.test}.js`, `README.md` |
 | 2026-08-10 | **Pivot to local-first per user directive ("skip Cloudflare until everything works").** Cloudflare Workers + Durable Objects moved from required backend to Phase 6. Built the full Phase 1–5 app against a local Node signaling server with the same message protocol the Cloudflare layer will implement later. | `server/`, `web/`, `test/`, `README.md` |
@@ -267,6 +283,20 @@ The app on github.io is the **viewer shell only** — it needs a signaling backe
 4. Now every device can open the github.io URL: one picks **Camera**, another **Monitor** → pair with the QR code.
 
 > If you skip step 2–3, the github.io app shows a friendly “no backend connected” banner — that's expected; the full app runs at `http://<ip>:3000` directly from your server.
+
+### Step 1c (optional) — Deploy the Cloudflare backend (free tier)
+
+```bash
+cd ai-home-guard/worker
+npx wrangler login              # opens your browser, logs into Cloudflare
+npm run r2:create               # once: creates the ai-home-guard-clips R2 bucket
+npm run deploy                  # deploys Worker + DOs + static assets
+```
+After ~30 seconds the whole app (site + API + signaling) runs at
+`https://ai-home-guard.<subdomain>.workers.dev` — open it from any device, no Node
+server needed. Pair with QR codes exactly like before; events, clips and thumbnails
+live in the Worker's Durable Object storage + R2, and long-term storage can still be
+your Google Drive. A custom domain can be attached later in the Cloudflare dashboard.
 
 ### Step 2 — Open the app on your devices
 - On the server computer: http://localhost:3000

@@ -1,0 +1,19 @@
+{
+  "name": "ai-home-guard-worker",
+  "private": true,
+  "version": "0.1.0",
+  "description": "AI Home Guard — Cloudflare Workers + Durable Objects backend (Phase 6).",
+  "scripts": {
+    "dev": "wrangler dev --port 8787",
+    "deploy": "wrangler deploy",
+    "r2:create": "wrangler r2 bucket create ai-home-guard-clips"
+  },
+  "dependencies": {
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241106.0",
+    "typescript": "^5.6.0",
+    "wrangler": "^4.0.0"
+  }
+}

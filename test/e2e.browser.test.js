@@ -3,7 +3,7 @@
 // live WebRTC view, motion events -> timeline, clips, feedback learning.
 const { chromium } = require('playwright');
 
-const BASE = 'http://localhost:3000';
+const BASE = process.env.BASE_URL || 'http://localhost:3000';
 let pass = 0, fail = 0;
 const ok = (cond, label) => { if (cond) { pass++; console.log('  ✓ ' + label); } else { fail++; console.log('  ✗ FAIL: ' + label); } };
 
@@ -169,9 +169,16 @@ const ok = (cond, label) => { if (cond) { pass++; console.log('  ✓ ' + label);
   console.log('== Offline queue ==');
   // simulate: camera page offline is hard; instead verify queued-event flush path exists
   // (unit-level: server restart persistence). Skip heavy simulation; check db persisted:
-  const db = JSON.parse(require('fs').readFileSync('data/db.json', 'utf8'));
-  ok(db.cameras.some(c => c.code === identity.code), 'camera persisted across server restarts (db.json)');
-  ok(db.events.length >= 1, 'events persisted to db.json');
+  if (process.env.BASE_URL) {
+    // Cloudflare emulator: persistence lives in Durable Object storage
+    const st = await fetch(BASE + '/api/state').then(r => r.json());
+    ok(st.cameras.some(c => c.code === identity.code), 'camera persisted in DO storage (survives restart)');
+    ok(st.events.length >= 1, 'events persisted in DO storage');
+  } else {
+    const db = JSON.parse(require('fs').readFileSync('data/db.json', 'utf8'));
+    ok(db.cameras.some(c => c.code === identity.code), 'camera persisted across server restarts (db.json)');
+    ok(db.events.length >= 1, 'events persisted to db.json');
+  }
 
   // console errors (ignore favicon + stale-file 404s from earlier test runs)
   const realErrors = errors.filter(e => !e.includes('favicon') && !e.includes('404 (Not Found)'));

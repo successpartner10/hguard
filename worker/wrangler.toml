@@ -1,0 +1,34 @@
+# AI Home Guard — Cloudflare Workers configuration
+# Deploy:  wrangler r2 bucket create ai-home-guard-clips   (once)
+#          wrangler deploy
+# The app is then served from https://ai-home-guard.<subdomain>.workers.dev
+
+name = "ai-home-guard"
+main = "src/index.ts"
+compatibility_date = "2024-11-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Static site (the whole web/ app) served from the same Worker
+[assets]
+directory = "../web"
+binding = "ASSETS"
+run_worker_first = true
+
+# Durable Objects
+[[durable_objects.bindings]]
+name = "REGISTRY"
+class_name = "Registry"
+
+[[durable_objects.bindings]]
+name = "SESSION"
+class_name = "Session"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Registry", "Session"]
+
+# Event clips + thumbnails (user's clips live in their Google Drive;
+# this R2 bucket is the transient clip store served to the monitor)
+[[r2_buckets]]
+binding = "CLIPS"
+bucket_name = "ai-home-guard-clips"

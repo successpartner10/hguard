@@ -4,8 +4,8 @@
 const WebSocket = require('ws');
 const http = require('http');
 
-const BASE = 'http://localhost:3000';
-const WS = 'ws://localhost:3000/ws';
+const BASE = process.env.BASE_URL || 'http://localhost:3000';
+const WS = BASE.replace(/^http/, 'ws') + '/ws';
 let pass = 0, fail = 0;
 const ok = (cond, label) => { if (cond) { pass++; console.log('  ✓ ' + label); } else { fail++; console.log('  ✗ FAIL: ' + label); } };
 
@@ -71,7 +71,7 @@ async function waitAll(ms) { return new Promise(r => setTimeout(r, ms)); }
   ok(r.status === 200 && r.body.length > 100000, 'jsQR vendored & served');
 
   r = await api('/api/qr?code=AB12-CD34');
-  ok(r.status === 200 && r.headers['content-type'] === 'image/png' && r.body[0] === 0x89, 'QR endpoint returns PNG');
+  ok(r.status === 200 && /image\/(svg|png)/.test(r.headers['content-type']), 'QR endpoint returns an image (' + r.headers['content-type'] + ')');
 
   r = await api('/api/qr?code=nope');
   ok(r.status === 400, 'QR endpoint rejects bad codes');
