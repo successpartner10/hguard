@@ -132,7 +132,9 @@ const server = http.createServer((req, res) => {
   // need CORS, but the REST calls do.
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  // 'bypass-tunnel-reminder' is sent by automation/testing tools to skip
+  // localtunnel's interstitial; allow it so preflights from the app pass.
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, bypass-tunnel-reminder');
   if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
 
   const url = new URL(req.url, `http://${req.headers.host}`);

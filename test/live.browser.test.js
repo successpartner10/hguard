@@ -87,14 +87,15 @@ const ok = (cond, label) => { if (cond) { pass++; console.log('  ✓ ' + label);
   const rows = await mon.locator('#timeline-list .tl-row').count();
   ok(rows >= 1, `timeline shows ${rows} event(s)`);
 
+  // the clip + thumb upload through the tunnel can take a while — poll longer
+  // (the app also retries queued uploads every 30s)
   let ev = null;
-  for (let i = 0; i < 25 && !ev; i++) {
-    // fetch through the browser (its networking to the tunnel is proven working)
+  for (let i = 0; i < 90 && !ev; i++) {
     try {
       const state = await mon.evaluate(async (u) => (await fetch(`${u}/api/events?limit=50&since=${t0}`)).json(), TUNNEL);
       ev = state.events.find(e => e.clip && e.thumb);
     } catch { /* tunnel hiccup — retry */ }
-    if (!ev) await new Promise(r => setTimeout(r, 1500));
+    if (!ev) await new Promise(r => setTimeout(r, 2000));
   }
   ok(!!ev, 'clip + thumb stored via tunnel backend');
   if (ev) {

@@ -93,6 +93,12 @@ export class CameraMode {
 
     // network events
     this._listen.push(net.on('open', () => this.onNetOpen()));
+    // retry queued clip uploads periodically (not just on reconnect)
+    this._drainTimer = setInterval(() => {
+      drainQueue(() => {}).then((left) => {
+        if (left === 0 && this._drainNotified) { this._drainNotified = false; }
+      }).catch(() => {});
+    }, 30000);
     this._listen.push(net.on('signal', (m) => this.onSignal(m)));
     this._listen.push(net.on('monitor.watch', (m) => this.onWatch(m.sessId)));
     this._listen.push(net.on('monitor.unwatch', (m) => this.onUnwatch(m.sessId)));
