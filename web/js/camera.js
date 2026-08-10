@@ -39,7 +39,7 @@ export class CameraMode {
     this.pendingEvents = [];         // offline queue (memory)
     this.localEvents = [];
     this.battery = null;
-    this.raf = null;
+    this._loopTimer = null;
     this._aiTimer = null;
     this._tailTimer = null;
     this._demoT = 0;
@@ -210,27 +210,31 @@ export class CameraMode {
   }
 
   // ------------------------------------------------------------- main loop
+  // Driven by setInterval, NOT requestAnimationFrame: browsers throttle rAF
+  // in background tabs (a phone camera tab behind other apps would otherwise
+  // stop detecting). Timers are only clamped to ~1s in the background, which
+  // is plenty for motion analysis.
   startLoop() {
-    if (this.raf) cancelAnimationFrame(this.raf);
-    const draw = () => {
-      this.raf = requestAnimationFrame(draw);
-      const ctx = this.procCtx;
-      if (this.demoCanvas) {
-        this.stepDemo();
-        ctx.drawImage(this.demoCanvas, 0, 0, PROC_W, PROC_H);
-      } else if (this.stream && this.stream.getVideoTracks().length) {
-        ctx.filter = this.settings.night ? 'brightness(.72) contrast(1.35) saturate(.85)' : 'none';
-        ctx.drawImage($('#cam-preview'), 0, 0, PROC_W, PROC_H);
-        ctx.filter = 'none';
-      } else {
-        return;
-      }
-      this.motion.zones = this.settings.zones;
-      const r = this.motion.analyze(this.procCanvas);
-      if (r) this.onMotionFrame(r);
-      this.drawOverlay();
-    };
-    draw();
+    if (this._loopTimer) clearInterval(this._loopTimer);
+    this._loopTimer = setInterval(() => this.frame(), 80); // ~12 fps processing
+  }
+
+  frame() {
+    const ctx = this.procCtx;
+    if (this.demoCanvas) {
+      this.stepDemo();
+      ctx.drawImage(this.demoCanvas, 0, 0, PROC_W, PROC_H);
+    } else if (this.stream && this.stream.getVideoTracks().length) {
+      ctx.filter = this.settings.night ? 'brightness(.72) contrast(1.35) saturate(.85)' : 'none';
+      ctx.drawImage($('#cam-preview'), 0, 0, PROC_W, PROC_H);
+      ctx.filter = 'none';
+    } else {
+      return;
+    }
+    this.motion.zones = this.settings.zones;
+    const r = this.motion.analyze(this.procCanvas);
+    if (r) this.onMotionFrame(r);
+    this.drawOverlay();
   }
 
   // Synthetic scene: a wandering "person" blob + occasional parcel + camera noise
