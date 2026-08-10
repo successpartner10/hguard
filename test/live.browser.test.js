@@ -6,7 +6,7 @@
 const { chromium } = require('playwright');
 
 const LIVE = 'https://successpartner10.github.io/hguard/';
-const TUNNEL = 'https://aihguard-test.loca.lt';
+const TUNNEL = 'https://4c0809027dd4a6.lhr.life';
 let pass = 0, fail = 0;
 const ok = (cond, label) => { if (cond) { pass++; console.log('  ✓ ' + label); } else { fail++; console.log('  ✗ FAIL: ' + label); } };
 
@@ -16,8 +16,7 @@ const ok = (cond, label) => { if (cond) { pass++; console.log('  ✓ ' + label);
   const errors = [];
   const setup = async () => {
     const ctx = await browser.newContext();
-    // loca.lt interstitial bypass + point the app at the tunnel
-    await ctx.setExtraHTTPHeaders({ 'bypass-tunnel-reminder': 'true' });
+    // point the app at the tunnel (localhost.run: no interstitial needed)
     await ctx.addInitScript(`localStorage.setItem('ahg.settings', JSON.stringify(Object.assign(JSON.parse(localStorage.getItem('ahg.settings') || '{}'), { serverUrl: '${TUNNEL}' })));`);
     const page = await ctx.newPage();
     page.on('pageerror', e => errors.push(e.message.slice(0, 150)));
@@ -88,11 +87,10 @@ const ok = (cond, label) => { if (cond) { pass++; console.log('  ✓ ' + label);
   ok(rows >= 1, `timeline shows ${rows} event(s)`);
 
   // the clip + thumb upload through the tunnel can take a while — poll longer
-  // (the app also retries queued uploads every 30s)
   let ev = null;
   for (let i = 0; i < 90 && !ev; i++) {
     try {
-      const state = await mon.evaluate(async (u) => (await fetch(`${u}/api/events?limit=50&since=${t0}`)).json(), TUNNEL);
+      const state = await mon.evaluate(async (arg) => (await fetch(`${arg.u}/api/events?limit=50&since=${arg.t0}`)).json(), { u: TUNNEL, t0 });
       ev = state.events.find(e => e.clip && e.thumb);
     } catch { /* tunnel hiccup — retry */ }
     if (!ev) await new Promise(r => setTimeout(r, 2000));

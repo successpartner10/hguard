@@ -93,12 +93,20 @@ export class CameraMode {
 
     // network events
     this._listen.push(net.on('open', () => this.onNetOpen()));
-    // retry queued clip uploads periodically (not just on reconnect)
-    this._drainTimer = setInterval(() => {
-      drainQueue(() => {}).then((left) => {
-        if (left === 0 && this._drainNotified) { this._drainNotified = false; }
-      }).catch(() => {});
-    }, 30000);
+    // retry queued clip uploads periodically (not just on reconnect),
+    // with exponential backoff so a flaky network doesn't cause a retry storm
+    this._drainFailures = 0;
+    const scheduleDrain = () => {
+      const delay = Math.min(30000 * Math.pow(2, this._drainFailures), 300000);
+      this._drainTimer = setTimeout(async () => {
+        try {
+          const left = await drainQueue(() => {});
+          this._drainFailures = left > 0 ? this._drainFailures + 1 : 0;
+        } catch { this._drainFailures++; }
+        scheduleDrain();
+      }, delay);
+    };
+    scheduleDrain();
     this._listen.push(net.on('signal', (m) => this.onSignal(m)));
     this._listen.push(net.on('monitor.watch', (m) => this.onWatch(m.sessId)));
     this._listen.push(net.on('monitor.unwatch', (m) => this.onUnwatch(m.sessId)));

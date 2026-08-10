@@ -262,7 +262,7 @@ workflow deploys `web/` automatically. After ~1 minute the app is live.
 The app on github.io is the **viewer shell only** — it needs a signaling backend:
 
 1. On any computer, run the backend: `npm start` (see Step 1).
-2. Give it a public https address for testing: `npx localtunnel --port 3000` → you get a `https://xxx.loca.lt` URL.
+2. Give it a public https address for testing: `npx localtunnel --port 3000` → you get a `https://xxx.loca.lt` URL. (First visitors see a one-time "tunnel ahead" page — click through. If you prefer no interstitial, `ssh -R 80:localhost:3000 nokey@localhost.run` gives a `https://xxx.lhr.life` URL.)
 3. Open the github.io app → **Settings** → paste the tunnel URL into **Server URL** → Save.
 4. Now every device can open the github.io URL: one picks **Camera**, another **Monitor** → pair with the QR code.
 
