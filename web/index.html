@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0E9F8C">
+<title>AI Home Guard</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 2 27 7v9c0 7.2-4.7 11.7-11 14C9.7 27.7 5 23.2 5 16V7z' fill='%230E9F8C'/%3E%3Cpath d='M11.5 16.5l3 3 6-7' stroke='%23fff' stroke-width='2.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="./css/app.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- ============ TOP BAR ============ -->
+  <header class="topbar">
+    <div class="brand">
+      <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2 27 7v9c0 7.2-4.7 11.7-11 14C9.7 27.7 5 23.2 5 16V7z" fill="var(--accent)"/><path d="M11.5 16.5l3 3 6-7" stroke="#fff" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div class="brand-text">
+        <strong>AI Home Guard</strong>
+        <span class="brand-sub">camera · monitor · your Google Drive</span>
+      </div>
+    </div>
+
+    <nav class="mode-switch" role="tablist" aria-label="App mode">
+      <button id="mode-camera" class="mode-btn" role="tab" aria-selected="false">Camera</button>
+      <button id="mode-monitor" class="mode-btn" role="tab" aria-selected="false">Monitor</button>
+    </nav>
+
+    <div class="topbar-right">
+      <span id="conn-dot" class="conn-dot off" title="Disconnected"></span>
+      <button id="btn-settings" class="icon-btn" title="Settings" aria-label="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Shown when this copy of the app has no reachable backend (e.g. static GitHub Pages without a Server URL set) -->
+  <div id="server-hint" class="server-hint hidden">
+    <span>This copy of the app has no backend connected. Open the app from your server (<code>http://&lt;ip&gt;:3000</code>), or set your <b>Server URL</b> in Settings to point at a running signaling server.</span>
+    <button id="btn-hint-settings" class="btn btn-ghost btn-small">Settings</button>
+  </div>
+
+  <main>
+    <!-- ============ ONBOARDING ============ -->
+    <section id="view-onboarding" class="view hidden">
+      <div class="onboard-card">
+        <div class="onboard-art" aria-hidden="true">
+          <svg viewBox="0 0 200 120">
+            <rect x="40" y="20" width="120" height="80" rx="10" fill="var(--surface-2)" stroke="var(--border)" stroke-width="2"/>
+            <circle cx="100" cy="60" r="18" fill="none" stroke="var(--accent)" stroke-width="3" opacity="0.85"/>
+            <path d="M100 42v36M82 60h36" stroke="var(--accent)" stroke-width="3" stroke-linecap="round" opacity="0.85"/>
+            <circle cx="100" cy="60" r="5" fill="var(--accent)"/>
+            <rect x="86" y="8" width="28" height="8" rx="4" fill="var(--accent)" opacity="0.9"/>
+            <circle cx="70" cy="100" r="6" fill="#d97706"/><circle cx="100" cy="104" r="6" fill="#2563eb"/><circle cx="132" cy="100" r="6" fill="#16a34a"/>
+            <path d="M60 60q-12 0-12-12M140 60q12 0 12-12" stroke="var(--border)" stroke-width="3" stroke-linecap="round" fill="none"/>
+          </svg>
+        </div>
+        <h1>Your home, watching itself.</h1>
+        <p class="onboard-sub">Turn any spare phone, tablet, or laptop into an AI security camera — then watch, talk, and review from another device. Footage goes to <strong>your</strong> Google Drive, nowhere else.</p>
+        <div class="onboard-actions">
+          <button id="btn-start-camera" class="btn btn-primary btn-lg">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+            Turn this device into a camera
+          </button>
+          <button id="btn-start-monitor" class="btn btn-secondary btn-lg">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            Monitor my cameras
+          </button>
+        </div>
+        <p class="onboard-note">No account needed. No cloud. Pair devices with a QR code over your Wi-Fi.</p>
+      </div>
+    </section>
+
+    <!-- ============ CAMERA MODE ============ -->
+    <section id="view-camera" class="view hidden">
+      <!-- first-run setup -->
+      <div id="camera-setup" class="setup-card hidden">
+        <h2>Name this camera</h2>
+        <p>You'll see this name on your monitor. Pick something you recognize — like “Front Door”.</p>
+        <div class="field">
+          <input id="camera-name-input" type="text" maxlength="40" placeholder="Front Door" autocomplete="off">
+        </div>
+        <button id="btn-camera-go" class="btn btn-primary">Start camera</button>
+        <button id="btn-camera-back" class="btn btn-ghost">Back</button>
+      </div>
+
+      <div id="camera-dash" class="hidden">
+        <div class="cam-top">
+          <div>
+            <h2 id="cam-title">Camera</h2>
+            <div class="chips" id="cam-chips"></div>
+          </div>
+          <div class="cam-top-actions">
+            <button id="btn-pair-monitor" class="btn btn-secondary">Pair a monitor</button>
+            <button id="btn-cam-settings" class="btn btn-ghost">Settings</button>
+          </div>
+        </div>
+
+        <div class="cam-layout">
+          <div class="preview-card">
+            <div class="preview-wrap">
+              <video id="cam-preview" autoplay muted playsinline></video>
+              <canvas id="demo-view" width="640" height="360" class="hidden"></canvas>
+              <canvas id="cam-overlay" width="640" height="360"></canvas>
+              <div id="cam-no-signal" class="no-signal hidden">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M1 1l22 22"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.58 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+                <p>No camera signal</p>
+              </div>
+              <div id="zone-hint" class="zone-hint hidden">Draw a zone on the preview, or press Done to watch the whole frame.</div>
+              <div class="rec-badge hidden" id="rec-badge"><span class="dot-pulse"></span>REC</div>
+              <div id="motion-flash" class="motion-flash hidden"></div>
+              <div id="event-toast" class="event-toast hidden"></div>
+              <button id="btn-exit-zones" class="btn btn-primary btn-small hidden">Done with zones</button>
+            </div>
+            <div class="preview-controls">
+              <label class="switch" title="Arm / disarm detection">
+                <input type="checkbox" id="armed-toggle" checked>
+                <span class="slider"></span>
+                <span class="switch-label" id="armed-label">Armed</span>
+              </label>
+              <div class="sens-wrap">
+                <span class="sens-label">Sensitivity</span>
+                <input type="range" id="sens-slider" min="1" max="100" value="60">
+                <span id="sens-value" class="sens-value">60</span>
+              </div>
+              <div class="motion-meter" title="Current motion level">
+                <div id="motion-bar" class="motion-bar"></div>
+              </div>
+            </div>
+            <div class="toggles">
+              <button id="btn-zones" class="chip-btn" title="Set detection zones">▣ Zones</button>
+              <button id="btn-night" class="chip-btn" title="Night mode (low-light enhancement)">🌙 Night</button>
+              <button id="btn-ai" class="chip-btn" title="AI person / package detection">✨ AI</button>
+              <button id="btn-packages" class="chip-btn hidden" title="Also detect packages">📦 Packages</button>
+            </div>
+          </div>
+
+          <aside class="cam-side">
+            <div class="card side-card" id="drive-card">
+              <div class="card-title">Storage · Google Drive</div>
+              <div id="drive-status" class="drive-status">Not connected. Add your Google account in Settings to store clips in your own Drive.</div>
+              <div class="mini-stat" id="drive-quota" hidden></div>
+              <button id="btn-drive-connect" class="btn btn-ghost btn-small hidden">Connect Drive</button>
+            </div>
+            <div class="card side-card">
+              <div class="card-title">Recent events</div>
+              <div id="cam-events" class="cam-events">
+                <p class="muted small">Nothing yet. Detection events will appear here.</p>
+              </div>
+            </div>
+            <div class="card side-card">
+              <div class="card-title">Live viewers</div>
+              <div id="viewers-list" class="muted small">No one is watching right now.</div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ MONITOR MODE ============ -->
+    <section id="view-monitor" class="view hidden">
+      <div class="mon-top">
+        <nav class="sub-tabs" role="tablist">
+          <button class="sub-tab active" data-tab="dashboard">Cameras</button>
+          <button class="sub-tab" data-tab="timeline">Timeline</button>
+        </nav>
+        <button id="btn-add-camera" class="btn btn-primary">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add a camera
+        </button>
+      </div>
+
+      <div id="tab-dashboard" class="sub-view">
+        <div id="camera-grid" class="camera-grid"></div>
+      </div>
+
+      <div id="tab-timeline" class="sub-view hidden">
+        <div class="tl-toolbar">
+          <div class="search-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input id="nl-search" type="text" placeholder="Search clips… try “person near garage after 10pm”" autocomplete="off">
+          </div>
+          <select id="filter-camera" class="select" title="Filter by camera"></select>
+          <select id="filter-tag" class="select" title="Filter by type">
+            <option value="">All events</option>
+            <option value="person">👤 Person</option>
+            <option value="package">📦 Package</option>
+            <option value="motion">Motion</option>
+          </select>
+          <select id="filter-range" class="select" title="Date range">
+            <option value="today">Today</option>
+            <option value="7">Last 7 days</option>
+            <option value="30">Last 30 days</option>
+            <option value="all">All time</option>
+          </select>
+        </div>
+        <div id="digest-card" class="card digest-card hidden">
+          <div class="card-title">📋 Today at a glance</div>
+          <p id="digest-text" class="digest-text"></p>
+        </div>
+        <div id="timeline-list" class="timeline-list"></div>
+        <div id="timeline-empty" class="empty-state hidden">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <h3 id="timeline-empty-title">No events yet</h3>
+          <p id="timeline-empty-sub">When a camera detects motion, clips show up here — searchable and tagged.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- ============ MODALS ============ -->
+<div id="modal-root"></div>
+
+<div id="toasts" class="toasts" aria-live="polite"></div>
+
+<script src="./vendor/jsqr.js"></script>
+<script type="module" src="./js/app.js"></script>
+</body>
+</html>

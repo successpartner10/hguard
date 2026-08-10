@@ -1,0 +1,25 @@
+{
+  "name": "ai-home-guard",
+  "version": "0.1.0",
+  "description": "Turn any spare phone, tablet, or laptop webcam into a smart AI security camera. No vendor cloud - your Google Drive is the storage.",
+  "private": true,
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node server/index.js",
+    "test": "node test/integration.test.js",
+    "test:e2e": "node test/e2e.browser.test.js",
+    "test:controls": "node test/extra.browser.test.js",
+    "test:pages": "node test/pages.browser.test.js",
+    "static": "node test/serve-static.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "qrcode": "^1.5.4",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "playwright": "^1.49.0"
+  }
+}
